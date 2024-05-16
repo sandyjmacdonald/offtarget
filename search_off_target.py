@@ -44,7 +44,7 @@ def search_genome(
     """
     search_length = len(primer_sequence) + 3
 
-    if append == True:
+    if append:
         mode = "a"
     else:
         mode = "w"
@@ -54,47 +54,49 @@ def search_genome(
             out.write("track itemRgb=On\n")
         for seq in SeqIO.parse(input_file, "fasta"):
             for i in range(0, len(seq) - search_length):
-                for strand in (1, 2):
-                    if strand == 1:
+                for direction in ("fwd", "rev"):
+                    if direction == "fwd":
                         search_seq = primer_sequence
                         whole_seq = search_seq + "NGG"
-                    else:
+                    elif direction == "rev":
                         search_seq = str(Seq(primer_sequence).reverse_complement())
                         whole_seq = "CCN" + search_seq
 
-                    start = i
-                    end = i + search_length
-                    this_seq = str(seq[start:end].seq)
-                    match = False
+                start = i
+                end = i + search_length
+                this_seq = str(seq[start:end].seq)
+                match = False
+
+                if direction == "fwd":
+                    mismatches = hamming_distance(this_seq[:-3], search_seq)
+                    if mismatches <= max_mismatches and this_seq[-2:] == "GG":
+                        match = True
+                        strand = 1
+                elif direction == "rev":
+                    mismatches = hamming_distance(this_seq[3:], search_seq)
+                    if mismatches <= max_mismatches and this_seq[:2] == "CC":
+                        match = True
+                        strand = 2
+
+                if match:
+                    name = "."
+                    if max_mismatches > 0:
+                        score = int(1000 - ((mismatches / max_mismatches) * 1000))
+                    else:
+                        score = 1000
+
+                    green = int((score / 1000) * 255)
+                    red = 255 - green
+                    blue = 0
+                    rgb = f"{red},{green},{blue}"
 
                     if strand == 1:
-                        mismatches = hamming_distance(this_seq[:-3], search_seq)
-                        if mismatches <= max_mismatches and this_seq[-2:] == "GG":
-                            match = True
-                    elif strand == 2:
-                        mismatches = hamming_distance(this_seq[3:], search_seq)
-                        if mismatches <= max_mismatches and this_seq[:2] == "CC":
-                            match = True
-
-                    if match:
-                        name = "."
-                        if max_mismatches > 0:
-                            score = int(1000 - ((mismatches / max_mismatches) * 1000))
-                        else:
-                            score = 1000
-
-                        green = int((score / 1000) * 255)
-                        red = 255 - green
-                        blue = 0
-                        rgb = f"{red},{green},{blue}"
-
-                        if strand == 1:
-                            strand_str = "+"
-                        else:
-                            strand_str = "-"
-                        out.write(
-                            f"{seq.id}\t{start}\t{end}\t{name}\t{score}\t{strand_str}\t{start}\t{end}\t{rgb}\n"
-                        )
+                        strand_str = "+"
+                    else:
+                        strand_str = "-"
+                    out.write(
+                        f"{seq.id}\t{start}\t{end}\t{name}\t{score}\t{strand_str}\t{start}\t{end}\t{rgb}\n"
+                    )
 
 
 if __name__ == "__main__":
