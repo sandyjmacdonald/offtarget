@@ -55,27 +55,22 @@ def search_genome(
         for seq in SeqIO.parse(input_file, "fasta"):
             for i in range(0, len(seq) - search_length):
                 for direction in ("fwd", "rev"):
-                    if direction == "fwd":
+                    if direction == "rev":
                         search_seq = primer_sequence
-                        whole_seq = search_seq + "NGG"
-                    elif direction == "rev":
+                    elif direction == "fwd":
                         search_seq = str(Seq(primer_sequence).reverse_complement())
-                        whole_seq = "CCN" + search_seq
 
                 start = i
                 end = i + search_length
                 this_seq = str(seq[start:end].seq)
                 match = False
 
-                if direction == "fwd":
-                    mismatches = hamming_distance(this_seq[:-3], search_seq)
-                    if mismatches <= max_mismatches and this_seq[-2:] == "GG":
-                        match = True
+                mismatches = hamming_distance(this_seq[:-3], search_seq)
+                if mismatches <= max_mismatches and this_seq[-2:] == "GG":
+                    match = True
+                    if direction == "fwd":
                         strand = 1
-                elif direction == "rev":
-                    mismatches = hamming_distance(this_seq[3:], search_seq)
-                    if mismatches <= max_mismatches and this_seq[:2] == "CC":
-                        match = True
+                    elif direction == "rev":
                         strand = 2
 
                 if match:
