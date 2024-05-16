@@ -27,7 +27,7 @@ def hamming_distance(s1, s2):
 
 
 def search_genome(
-    input_file, primer_sequence, output_file, max_mismatches=5, append=False
+    input_file, primer_sequence, output_file, max_mismatches=5, append=False, expand=expand
 ):
     """
     Takes an input fasta reference sequence file (e.g. a genome), a primer
@@ -42,6 +42,9 @@ def search_genome(
         Returns:
             A bed file with off-target mutation sites in the input reference
     """
+    if primer_sequence[-3:] == "NGG":
+        primer_sequence = primer_sequence[:-3]
+
     search_length = len(primer_sequence) + 3
 
     if append:
@@ -54,27 +57,24 @@ def search_genome(
             out.write("track itemRgb=On\n")
         for seq in SeqIO.parse(input_file, "fasta"):
             for i in range(0, len(seq) - search_length):
-                for direction in ("fwd", "rev"):
-                    if direction == "rev":
-                        search_seq = primer_sequence
-                    elif direction == "fwd":
-                        search_seq = str(Seq(primer_sequence).reverse_complement())
-
                 start = i
                 end = i + search_length
                 this_seq = str(seq[start:end].seq)
                 match = False
 
-                if direction == "fwd":
-                    mismatches = hamming_distance(this_seq[:-3], search_seq)
-                    if mismatches <= max_mismatches and this_seq[-2:] == "GG":
-                        match = True
-                        strand = 1
-                elif direction == "rev":
-                    mismatches = hamming_distance(this_seq[3:], search_seq)
-                    if mismatches <= max_mismatches and this_seq[:2] == "CC":
-                        match = True
-                        strand = 2
+                for direction in ("fwd", "rev"):
+                    if direction == "rev":
+                        search_seq = primer_sequence
+                        mismatches = hamming_distance(this_seq[:-3], search_seq)
+                        if mismatches <= max_mismatches and this_seq[-2:] == "GG":
+                            match = True
+                            strand = 2
+                    elif direction == "fwd":
+                        search_seq = str(Seq(primer_sequence).reverse_complement())
+                        mismatches = hamming_distance(this_seq[3:], search_seq)
+                        if mismatches <= max_mismatches and this_seq[:2] == "CC":
+                            match = True
+                            strand = 1
 
                 if match:
                     name = "."
@@ -93,7 +93,7 @@ def search_genome(
                     else:
                         strand_str = "-"
                     out.write(
-                        f"{seq.id}\t{start}\t{end}\t{name}\t{score}\t{strand_str}\t{start}\t{end}\t{rgb}\n"
+                        f"{seq.id}\t{start-expand}\t{end+expand}\t{name}\t{score}\t{strand_str}\t{start-expand}\t{end+expand}\t{rgb}\n"
                     )
 
 
@@ -121,6 +121,13 @@ if __name__ == "__main__":
         help="maximum number of base mismatches in primer sequences",
         default=5,
     )
+    parser.add_argument(
+        "-e",
+        "--expand",
+        type=int,
+        help="number of bases to expand out from match",
+        default=0,
+    )
     parser.add_argument("-a", "--append", action="store_true")
 
     args = parser.parse_args()
@@ -129,6 +136,7 @@ if __name__ == "__main__":
     output_file = args.output
     primer_sequence = args.primer
     max_mismatches = args.mismatches
+    expand = args.expand
     append = args.append
 
     search_genome(
@@ -136,5 +144,6 @@ if __name__ == "__main__":
         primer_sequence,
         output_file,
         max_mismatches=max_mismatches,
+        expand=expand,
         append=append,
     )
