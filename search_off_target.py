@@ -65,12 +65,15 @@ def search_genome(
                 this_seq = str(seq[start:end].seq)
                 match = False
 
-                mismatches = hamming_distance(this_seq[:-3], search_seq)
-                if mismatches <= max_mismatches and this_seq[-2:] == "GG":
-                    match = True
-                    if direction == "fwd":
+                if direction == "fwd":
+                    mismatches = hamming_distance(this_seq[:-3], search_seq)
+                    if mismatches <= max_mismatches and this_seq[-2:] == "GG":
+                        match = True
                         strand = 1
-                    elif direction == "rev":
+                elif direction == "rev":
+                    mismatches = hamming_distance(this_seq[3:], search_seq)
+                    if mismatches <= max_mismatches and this_seq[:2] == "CC":
+                        match = True
                         strand = 2
 
                 if match:
